@@ -12,6 +12,23 @@ if (-not $context) { exit 0 }
 
 $prefix = Get-PsmuxOption '@claude_session_prefix' 'claude-'
 
+# Refuse to launch from inside an already-launched Claude session, in EITHER
+# mode. Not the popup-attached check below (that one is popup-specific and
+# keyed on the target session's own attach state) — this is the same
+# unconditional guard the original bash plugin had
+# (`"$(tmux display-message -p '#S')" == "$prefix"*`), and it matters for a
+# different reason here: without it, a second prefix+y pressed from inside the
+# Claude session recomputes the SAME session (same pane path -> same hash),
+# skips creation, and falls through to Set-ClaudeOrigin below — which then
+# records $context.Session as the origin. But $context.Session at that point
+# IS the Claude session, so the origin gets overwritten to point at itself,
+# and prefix+d can never find its way back to the real origin again. See
+# detach.ps1, which already guards the same way for itself.
+if ($context.Session -and $context.Session.StartsWith($prefix)) {
+    Invoke-Psmux display-message 'psmux-claude-session-manager: already inside a Claude session' | Out-Null
+    exit 0
+}
+
 # Resolved once, here, while #{session_name} is still the launching session —
 # and recorded below so the return path (Restore-ClaudeClients, detach.ps1)
 # uses this same mode rather than re-resolving it from inside the claude

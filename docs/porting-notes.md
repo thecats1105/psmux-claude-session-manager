@@ -357,6 +357,37 @@ abandoned port that binds the same `y`/`u`. This plugin wins only because its
 config line runs *after* ppm's `run`. Verified 4/4 at server start, but it is
 order-dependent; removing that plugin directory would make it robust.
 
+### 3.8 A second prefix+y from inside the Claude session corrupted its own origin — *fixed*
+
+**Symptom, reported by a user running `switch` mode with `prefix` rebound to
+`Ctrl+t`:** `prefix`+`y` once, then `prefix`+`y` again *from inside the Claude
+session it just opened*, then `prefix`+`d` no longer returns to the original
+session — no matter how many times it's pressed.
+
+**Cause.** The original bash `launch.sh` had an unconditional guard, checked
+before anything else: `[[ "$(tmux display-message -p '#S')" == "$prefix"* ]]`
+— if the session the key was pressed in is itself a plugin session, bail out.
+The port narrowed this into a **popup-mode-only** check
+(`$jumpMode -eq 'popup' -and (Test-PsmuxSessionAttached $session)`, keyed on
+the *target* session's attach state) and lost the general case. `detach.ps1`
+kept its own equivalent guard (`$context.Session.StartsWith($prefix)`);
+`launch.ps1` did not.
+
+Without it, in `switch` mode: the second `prefix`+y press resolves
+`$context.Path` to the Claude pane's own cwd, which hashes to the *same*
+session it's already in, so the create branch is skipped — but the script
+still reaches `Set-ClaudeOrigin -Session $session -Context $context ...`. At
+that point `$context.Session` **is** the Claude session, so the origin
+recorded for it becomes itself. `detach.ps1`'s `switch` branch then
+`switch-client`s to `origin.Session` (itself) and `select-window`s to a window
+inside itself — a no-op every time, so `prefix`+d can never reach the real
+origin again. The stale popup-only guard didn't fire because it only checks
+the popup path.
+
+**Fixed** by restoring the general, mode-independent guard at the top of
+`launch.ps1` — `$context.Session.StartsWith($prefix)` — the same check
+`detach.ps1` already used, in the same place the original bash plugin had it.
+
 ---
 
 ## 4. Upstream: popup mode's problems, and how to report them
