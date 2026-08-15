@@ -16,6 +16,7 @@ Contents:
 3. [Problems found, and how they were fixed](#3-problems-found-and-how-they-were-fixed)
 4. [Upstream: popup mode's problems, and how to report them](#4-upstream-popup-modes-problems-and-how-to-report-them)
 5. [Remaining work](#5-remaining-work)
+6. [Syncing with upstream](#6-syncing-with-upstream)
 
 ---
 
@@ -562,3 +563,23 @@ how this was found.
    valuable thing left. `enter`-jump exercises the rewritten §3.2 code.
 2. **File §4 upstream**, in the order given in the filing plan.
 3. **§3.7** — decide whether to remove the conflicting ppm plugin directory.
+
+## 6. Syncing with upstream
+
+Upstream is bash/tmux; this is a full rewrite, so `git merge`/`cherry-pick`
+don't apply. Syncing means reading `git log main..upstream/main` on the
+`upstream` remote and re-applying, by hand, whatever still has a PowerShell
+equivalent.
+
+**Reviewed and applied through `upstream/main` @ `ac3470e`** (2026-07-26,
+5 commits back to the merge-base `7dc8877`):
+
+| Upstream commit | Applied as |
+|---|---|
+| `8ee9a5c` fix(launch): shell-quote session name in the display-popup command | Quoted `$Session`/`$session` in both embedded command strings — `Enter-ClaudeSession`'s popup branch (`helpers.ps1`) and the `new-session` wrapper command (`launch.ps1`). Same root cause as upstream: `@claude_session_prefix` is user-set and the session name is embedded in a string a child shell/`pwsh` re-parses |
+| `55bd4f6` fix(launch): report a missing directory instead of an empty popup | Added a `Test-Path` guard in `launch.ps1`'s create branch only, mirroring upstream's placement — an existing session stays attachable even if its launch directory is gone |
+| `76cc206` refactor(helpers): drop cut subprocess from session_hash | N/A — `Get-SessionHash` already hashes via `[System.Security.Cryptography.MD5]` with no subprocess |
+| `485a889` refactor(launch): Drop explanatory comments | N/A — upstream's own style choice, not carried over |
+
+Next sync should start from `git log ac3470e..upstream/main` (or re-fetch and
+diff from whatever this table's newest hash is).

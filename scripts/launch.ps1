@@ -37,6 +37,13 @@ if ($jumpMode -eq 'popup' -and (Test-PsmuxSessionAttached $session)) {
 }
 
 if (-not (Test-PsmuxSessionExists $session)) {
+    # Only guard the create path: an existing session stays attachable even if
+    # the directory it was launched from has since been renamed or removed.
+    if (-not (Test-Path -LiteralPath $context.Path -PathType Container)) {
+        Invoke-Psmux display-message "psmux-claude-session-manager: $($context.Path) no longer exists" | Out-Null
+        exit 0
+    }
+
     # psmux copies the invoking client's environment into the new session. If we
     # were started from inside a Claude session, the new agent inherits that
     # session's identity, decides it is a nested child, and never registers with
