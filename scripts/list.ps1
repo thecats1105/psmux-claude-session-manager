@@ -31,9 +31,22 @@ function Open-Picker {
     }
 }
 
-if ($context -and $context.Session -and $context.Session.StartsWith($prefix)) {
-    # Pressed from inside a session popup: close that popup first, so the picker
-    # opens full-size on the outer client instead of cramped inside it.
+if ($context -and $context.Session -and $context.Session.StartsWith($prefix) -and
+    (Get-ClaudeEntryMode -Session $context.Session) -eq 'popup') {
+    # Pressed from inside a session POPUP (nested attach): close that popup
+    # first, so the picker opens full-size on the outer client instead of
+    # cramped inside it. `detach-client -s <session>` is safe here specifically
+    # because a popup's nested attach is the only client ever on that session
+    # (docs/porting-notes.md §3.5) — it can't be the user's real client.
+    #
+    # `switch` mode never reaches here: $context.Session.StartsWith($prefix)
+    # alone doesn't mean "inside a popup" — under `switch` there is no popup at
+    # all, and the client that's "inside" the Claude session IS the user's real
+    # one. Detaching it the same way would kill the user's actual terminal
+    # instead of an overlay (found live: prefix+u from inside a `switch`-mode
+    # Claude session force-closed the whole psmux client; the session itself
+    # stayed up). Get-ClaudeEntryMode is the same mode check detach.ps1 already
+    # relies on for this exact distinction.
     #
     # The tmux original needed a retry loop here, because display-popup returned
     # before tmux had finished tearing the closing overlay down. psmux's

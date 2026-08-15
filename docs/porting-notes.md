@@ -388,6 +388,35 @@ the popup path.
 `launch.ps1` — `$context.Session.StartsWith($prefix)` — the same check
 `detach.ps1` already used, in the same place the original bash plugin had it.
 
+### 3.9 prefix+u from inside a `switch`-mode Claude session force-closed the client — *fixed*
+
+**Symptom, reported by a user on `switch` mode:** `prefix`+`u` pressed from
+inside a Claude session closed the psmux client entirely (the terminal window
+itself went away). The session stayed alive on the server; re-attaching and
+using the picker from there worked normally.
+
+**Cause.** `list.ps1` had one branch for "the list key was pressed from
+inside a session popup": detach the popup (`detach-client -s <session>`) so
+the picker can reopen full-size on the outer client, instead of cramped
+inside the popup it would otherwise nest inside. It reached that branch on
+`$context.Session.StartsWith($prefix)` alone — true whenever the *current*
+session is a plugin-launched one, with no check of *how* it was entered.
+
+That premise only holds for `popup` mode, where a nested attach really is a
+throwaway second client and `detach-client -s <session>` is safe (§3.5: it's
+the only client that can be on that session). Under `switch` mode there is no
+popup to begin with — the client "inside" the Claude session **is** the
+user's real, only client — so the same detach call tore down the user's
+actual terminal instead of an overlay that was never there.
+
+Exactly the same false premise as §3.8, in a different script.
+
+**Fixed** by gating the branch on `(Get-ClaudeEntryMode -Session
+$context.Session) -eq 'popup'` — the same mode check `detach.ps1` already uses
+to tell the two cases apart. `switch` mode now falls through to the normal
+path at the bottom of the file, which opens the picker as an ordinary popup on
+the current client with no detach involved.
+
 ---
 
 ## 4. Upstream: popup mode's problems, and how to report them
