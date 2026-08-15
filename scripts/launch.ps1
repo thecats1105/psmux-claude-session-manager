@@ -63,8 +63,11 @@ if (-not (Test-PsmuxSessionExists $session)) {
     # helpers.ps1. Get-PluginRoot is forward-slashed: psmux strips backslashes
     # out of command strings.
     $root = Get-PluginRoot
+    # $session is quoted, not just $root: @claude_session_prefix is user-set and
+    # may contain spaces or shell metacharacters, and this whole string is
+    # re-parsed by a child pwsh -File once the pane runs it.
     $newArgs = @('new-session', '-d', '-s', $session, '-c', $context.Path,
-        "pwsh -NoProfile -File `"$root/scripts/session.ps1`" $session")
+        "pwsh -NoProfile -File `"$root/scripts/session.ps1`" `"$session`"")
     Invoke-Psmux @newArgs | Out-Null
 }
 

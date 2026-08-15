@@ -220,7 +220,10 @@ function Enter-ClaudeSession {
     $root = Get-PluginRoot
     $argv = @('display-popup', '-E')
     if ($Client) { $argv += @('-c', $Client) }
-    $argv += @('-w', $Width, '-h', $Height, "pwsh -NoProfile -File `"$root/scripts/attach.ps1`" $Session")
+    # $Session is quoted, not just $root: @claude_session_prefix is user-set and
+    # may contain spaces or shell metacharacters, and this whole string is
+    # re-parsed by a child pwsh -File once the popup runs it.
+    $argv += @('-w', $Width, '-h', $Height, "pwsh -NoProfile -File `"$root/scripts/attach.ps1`" `"$Session`"")
     Invoke-Psmux @argv | Out-Null
 }
 
